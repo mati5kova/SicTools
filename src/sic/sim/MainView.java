@@ -9,6 +9,7 @@ import sic.common.Utils;
 import sic.disasm.Disassembler;
 import sic.link.ui.LinkListener;
 import sic.link.ui.LinkerGui;
+import sic.link.LinkerError;
 import sic.loader.Loader;
 import sic.sim.views.*;
 import sic.sim.addons.Addon;
@@ -21,6 +22,8 @@ import java.io.*;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.Vector;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * TODO: write a short description
@@ -42,6 +45,8 @@ public class MainView {
     private DataBreakpointView dataBreakpointView;
 
     private File lastLoadedFile;
+    private List<String> lastLoadedSources;
+    private String lastMainSection;
 
     private Vector<Addon.MenuEntry> menuEntries = new Vector<Addon.MenuEntry>();
     private Vector<Addon.SettingsPanel> settingsPanels = new Vector<Addon.SettingsPanel>();
@@ -307,6 +312,7 @@ public class MainView {
             Reader reader = new FileReader(file);
             Loader.loadSection(executor.machine, reader);
             lastLoadedFile = file;
+            lastLoadedSources = null;
             mainFrame.setTitle(file.getName());
             updateView();
         } catch (FileNotFoundException e1) {
@@ -331,6 +337,7 @@ public class MainView {
         Reader reader = new StringReader(writer.toString());
         Loader.loadSection(executor.machine, reader);
         lastLoadedFile = file;
+        lastLoadedSources = null;
         mainFrame.setTitle(file.getName());
 
         disassemblyView.setLabelMap(program.getLabels());
@@ -345,7 +352,33 @@ public class MainView {
     }
 
 
+    public boolean loadAsm(List<String> filenames, String mainSection) {
+        try {
+            LinkedProgram program = LinkedProgram.assemble(filenames, mainSection);
+            executor.stop();
+            program.load(executor.machine);
+            disassemblyView.setLabelMap(program.labels);
+            watchView.clearLabelMap();
+            watchView.setLabelMap(program.dataLabels);
+            lastLoadedSources = new ArrayList<>(filenames);
+            lastMainSection = mainSection;
+            lastLoadedFile = null;
+            mainFrame.setTitle(mainSection + " — " + String.join(", ", filenames));
+            if (arg.isStats()) System.out.printf("Instructions read: %d\n", program.instructionCount);
+            updateView();
+            return true;
+        } catch (IOException | LinkerError e) {
+            System.err.println(e.getMessage());
+            JOptionPane.showMessageDialog(mainFrame, e.getMessage(), "Assembly/link error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+    }
+
     private void loadLastLoaded() {
+        if (lastLoadedSources != null) {
+            loadAsm(lastLoadedSources, lastMainSection);
+            return;
+        }
         if (lastLoadedFile == null) return; // No file loaded before
 
         load(lastLoadedFile);

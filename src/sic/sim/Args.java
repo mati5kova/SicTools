@@ -1,6 +1,8 @@
 package sic.sim;
 
 import java.util.Vector;
+import java.util.ArrayList;
+import java.util.List;
 
 import sic.common.Utils;
 
@@ -40,6 +42,8 @@ public class Args extends  AbstractCmdLineArgs {
     private String filename;
     private String filebase;
     private String fileext;
+    private final List<String> filenames = new ArrayList<>();
+    private String mainSection;
 
     private int freq;
     private int debug;
@@ -63,6 +67,14 @@ public class Args extends  AbstractCmdLineArgs {
 
     public String getFilename() {
         return filename;
+    }
+
+    public List<String> getFilenames() {
+        return filenames;
+    }
+
+    public String getMainSection() {
+        return mainSection;
     }
 
     public String getFilebase() {
@@ -129,6 +141,8 @@ public class Args extends  AbstractCmdLineArgs {
           //"    -debug level      Set the debug level.\n" + // Don't display while not implemented (TODO)
             "    -start                Start on load.\n" +
             "    -stats                Print instruction statistics.\n" +
+            "    -m section            Assemble and link .asm inputs; required for multiple files.\n" +
+            "                          Example: -m rec rec.asm stack.asm\n" +
             "    -text colsxrows       Show and resize textual screen.\n" +
             "    -graph colsxrows[@hz] Show and resize graphical screen.\n" +
             "    -keyb address         Show and set keyboard address.\n" +
@@ -167,6 +181,11 @@ public class Args extends  AbstractCmdLineArgs {
                 case "-start":
                     start = true;
                     break;
+                case "-m":
+                    if (++last == args.length || args[last].startsWith("-"))
+                        throw new IllegalArgumentException("Missing main section after -m.");
+                    mainSection = args[last];
+                    break;
                 case "-freq":
                     freq = parseFreq(args[++last]);
                     break;
@@ -194,9 +213,19 @@ public class Args extends  AbstractCmdLineArgs {
         }
         // parameters
         if (last < args.length) {
-            filename = args[last++];
+            filename = args[last];
             filebase = Utils.getFileBasename(filename);
             fileext = Utils.getFileExtension(filename);
+            while (last < args.length) filenames.add(args[last++]);
+        }
+        if (!help && (filenames.size() > 1 || mainSection != null)) {
+            if (mainSection == null)
+                throw new IllegalArgumentException("Multiple assembly files require -m <main section>.");
+            if (filenames.isEmpty())
+                throw new IllegalArgumentException("No assembly files supplied for -m.");
+            for (String input : filenames)
+                if (!"asm".equals(Utils.getFileExtension(input)))
+                    throw new IllegalArgumentException("Linked source loading accepts only .asm files: " + input);
         }
     }
 

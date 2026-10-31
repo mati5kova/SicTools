@@ -21,6 +21,13 @@ public class StorageSymbol extends Symbol {
         bindCommand(command);
     }
 
+    public StorageSymbol(String name, int value, StorageSymbol source) {
+        super(name, source.loc, value, true);
+        dataType = source.dataType;
+        elementSize = source.elementSize;
+        elementCount = source.elementCount;
+    }
+
     /**
      * Represents the size of single element (single byte, word, or float)
      */

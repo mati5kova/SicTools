@@ -46,7 +46,13 @@ public class Sim {
 //        ToolTipManager.sharedInstance().setDismissDelay(15000);
 //        UIManager.put("ToolTip.font", new FontUIResource("Courier New", Font.PLAIN, 14));
         //
-        Args processedArgs = new Args(args);
+        Args processedArgs;
+        try {
+            processedArgs = new Args(args);
+        } catch (IllegalArgumentException e) {
+            System.err.println(e.getMessage());
+            return;
+        }
 
         if (processedArgs.isHelp()) {
             printHelp();
@@ -86,7 +92,11 @@ public class Sim {
         }
         mainView.addAddonMenu();
 
-        if (processedArgs.hasFilename()) mainView.load(new File(processedArgs.getFilename()));
+        boolean loaded = true;
+        if (processedArgs.getMainSection() != null)
+            loaded = mainView.loadAsm(processedArgs.getFilenames(), processedArgs.getMainSection());
+        else if (processedArgs.hasFilename())
+            mainView.load(new File(processedArgs.getFilename()));
 
         mainView.updateView();
 
@@ -97,7 +107,7 @@ public class Sim {
             }
         };
 
-        if (processedArgs.isStart()) {
+        if (processedArgs.isStart() && loaded) {
             executor.start();
         }
     }
